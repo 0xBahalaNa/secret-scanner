@@ -1,0 +1,37 @@
+{
+    "_comment": "TEST DATA ONLY — all CJI identifiers in this file are fake.",
+    "_purpose": "Exercises CJI-pattern detection for CJIS v6.0 compliance scanning.",
+    "_controls": "SC-28 (CJI at rest), SC-13 (Cryptographic Protection)",
+
+    "agency_config": {
+        "ori": "CA0380000",
+        "agency_id": "TX0140000",
+        "originating_agency": "NY0300000",
+        "agency_name": "Fake County Sheriff's Office"
+    },
+
+    "ncic_config": {
+        "ncic_query_type": "NCIC QH hot file query",
+        "ncic_message_format": "NCIC QW wanted persons lookup",
+        "ncic_vehicle_check": "NCIC QR registration query"
+    },
+
+    "personnel_records": {
+        "fbi_number": "123456AA7",
+        "fbi_id": "9876543B2",
+        "ucn": "555123456"
+    },
+
+    "state_records": {
+        "sid": "CA12345678",
+        "state_id": "TX9876543",
+        "sid_number": "NY2468101"
+    },
+
+    "safe_fields_no_alert": {
+        "description": "This config mentions CJI but has no actual identifiers",
+        "log_level": "info",
+        "region": "us-west-2",
+        "note": "Ensure CJIS compliance before deploying"
+    }
+}
