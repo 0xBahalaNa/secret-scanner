@@ -80,6 +80,19 @@ The patterns file should be a flat JSON object of `{"pattern_name": "regex_strin
 
 Custom patterns are merged with the built-in defaults. If a custom pattern has the same name as a built-in, it overrides the built-in.
 
+Export findings as structured JSON for evidence pipelines:
+
+```bash
+python secret_scanner.py /path/to/configs --output json
+```
+
+This writes `scan_results.json` with three sections:
+- **scan_metadata**: timestamp (ISO 8601), target directory, scanner version, duration
+- **findings[]**: each finding with `file_path`, `line_number`, `finding_type`, `pattern_matched`, `severity`, and `control_ids` (NIST 800-53)
+- **summary**: total counts and findings grouped by type
+
+See [`examples/sample_output.json`](examples/sample_output.json) for the full schema. Console output still prints in real time when using `--output json`.
+
 View all options:
 
 ```bash

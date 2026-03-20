@@ -1,0 +1,66 @@
+{
+  "scan_metadata": {
+    "timestamp": "2026-03-19T12:00:00+00:00",
+    "target_directory": "test_configs",
+    "scanner_version": "0.5.0",
+    "duration_seconds": 0.003,
+    "patterns_active": 13
+  },
+  "findings": [
+    {
+      "file_path": "bad-config.json",
+      "line_number": 4,
+      "finding_type": "AWS Access Key ID",
+      "pattern_matched": "AKIA[0-9A-Z]{16}",
+      "severity": null,
+      "control_ids": [
+        "IA-5(7)",
+        "SC-12",
+        "SC-28"
+      ]
+    },
+    {
+      "file_path": "secrets-variety.conf",
+      "line_number": 22,
+      "finding_type": "Connection String",
+      "pattern_matched": "[\\w+]+://[^/\\s:]+:[^/\\s@]+@[^/\\s]+",
+      "severity": null,
+      "control_ids": [
+        "IA-5(7)",
+        "SC-28"
+      ]
+    },
+    {
+      "file_path": "cji-leak.json",
+      "line_number": 7,
+      "finding_type": "CJI: ORI Number",
+      "pattern_matched": "(?i)(ori|agency_id|originating.agency)...",
+      "severity": null,
+      "control_ids": [
+        "SC-28",
+        "SC-13"
+      ]
+    }
+  ],
+  "summary": {
+    "total_files_scanned": 8,
+    "total_findings": 26,
+    "files_with_findings": 6,
+    "skipped_files": 1,
+    "findings_by_type": {
+      "AWS Access Key ID": 2,
+      "Password Assignment": 2,
+      "Private Key Header": 1,
+      "AWS Secret Access Key": 2,
+      "AWS Session Token": 1,
+      "API Key": 3,
+      "JWT Token": 1,
+      "Connection String": 1,
+      "Secret Assignment": 1,
+      "CJI: ORI Number": 3,
+      "CJI: NCIC Query Code": 3,
+      "CJI: FBI Number": 3,
+      "CJI: State ID (SID)": 3
+    }
+  }
+}
