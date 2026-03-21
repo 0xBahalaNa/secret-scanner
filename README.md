@@ -3,6 +3,7 @@
 A Python tool that scans directories for sensitive content using compiled regex patterns. Detects AWS credentials, API keys, passwords, private keys, JWTs, connection strings, and CJIS Criminal Justice Information (CJI) leakage. Designed for use in CI/CD pipelines and GRC engineering workflows targeting public safety technology environments.
 
 Maps to NIST 800-53 Rev 5 controls: **IA-5(7)**, **SC-12**, **SC-28**.
+Maps to FedRAMP High baseline controls: **IA-5(7)**, **SC-12**, **SC-28**.
 Maps to CJIS v6.0 controls: **SC-12**, **SC-13**, **SC-28**.
 
 ## Features
@@ -107,6 +108,51 @@ python secret_scanner.py --help
 | `1`  | Secrets detected (default behavior) |
 
 In a CI/CD pipeline, the non-zero exit code will cause the step to fail, blocking merges that contain exposed secrets.
+
+## Compliance Controls Addressed
+
+| Framework | Control ID | Control Name | How This Tool Validates |
+|-----------|-----------|--------------|------------------------|
+| NIST 800-53 Rev 5 | IA-5(7) | No Embedded Unencrypted Static Authenticators | Detects hardcoded passwords, API keys, AWS credentials, and private keys in source code and config files |
+| NIST 800-53 Rev 5 | SC-12 | Cryptographic Key Establishment and Management | Identifies exposed cryptographic keys (AWS secret keys, PEM private keys) that should be managed through key management services |
+| NIST 800-53 Rev 5 | SC-28 | Protection of Information at Rest | Detects sensitive data (credentials, CJI) stored in plaintext files instead of encrypted storage |
+| NIST 800-53 Rev 5 | SC-13 | Cryptographic Protection | Identifies CJI data outside FIPS 140-2/3 validated cryptographic boundaries |
+| FedRAMP High | IA-5(7) | No Embedded Unencrypted Static Authenticators | Same as NIST — FedRAMP High inherits this control with no additional enhancements |
+| FedRAMP High | SC-12 | Cryptographic Key Establishment and Management | Same as NIST — FedRAMP High requires FIPS 140-2 validated key management |
+| FedRAMP High | SC-28 | Protection of Information at Rest | Same as NIST — FedRAMP High requires encryption for all data at rest |
+| CJIS v6.0 | SC-12 | Cryptographic Key Establishment and Management | Detects CJI identifiers (ORI, FBI numbers, SIDs) that must be protected with agency-managed encryption keys |
+| CJIS v6.0 | SC-13 | Cryptographic Protection | Identifies CJI in plaintext — CJIS requires FIPS 140-2/3 validated encryption for all CJI at rest |
+| CJIS v6.0 | SC-28 | Protection of Information at Rest | Detects NCIC query codes, ORI numbers, and other CJI that must never appear in plaintext config files |
+
+## How This Supports Audits
+
+This tool produces evidence artifacts that directly support compliance assessments:
+
+- **Pre-audit scanning**: Run against infrastructure-as-code repos, config directories, and deployment artifacts before an assessment to identify findings proactively
+- **Continuous monitoring evidence**: Use `--output json` in CI/CD pipelines to generate timestamped, machine-readable scan results for each build — demonstrating ongoing compliance with IA-5(7) and SC-28
+- **Remediation tracking**: JSON output includes `findings_by_type` counts that can be compared across scans to show remediation progress over time
+- **Audit record content**: Each finding includes file path, line number, pattern type, and mapped control IDs — satisfying AU-3 (Content of Audit Records) requirements for specificity
+
+### Sample Evidence Output
+
+See [`examples/sample_output.json`](examples/sample_output.json) for the full JSON schema produced by `--output json`.
+
+## FedRAMP 20x Alignment
+
+FedRAMP 20x (Pilot) emphasizes machine-readable compliance artifacts and continuous validation over point-in-time assessments. This tool aligns with FedRAMP 20x in the following ways:
+
+- **JSON output format**: The `--output json` flag produces structured findings with ISO 8601 timestamps and NIST 800-53 control mappings — the foundation for transforming scan results into OSCAL Assessment Results format
+- **CI/CD integration**: Non-zero exit codes and `--exit-zero` mode support both enforcement and monitoring pipeline configurations
+- **Continuous evidence generation**: Each scan produces a timestamped evidence artifact, supporting the FedRAMP 20x shift from annual assessments to continuous monitoring with Key Security Indicators (KSIs)
+
+## CJIS v6.0 Relevance
+
+CJIS Security Policy v6.0 (effective April 1, 2026) aligns with NIST 800-53 Rev 5 and introduces stricter requirements for Criminal Justice Information (CJI) protection. This tool is specifically relevant to public safety technology environments because:
+
+- **CJI-specific detection**: Detects ORI numbers, NCIC query codes, FBI numbers, and State IDs — data types unique to law enforcement systems that generic secret scanners miss entirely
+- **Plaintext CJI is a policy violation**: Under CJIS v6.0 SC-28, CJI must be encrypted at rest using FIPS 140-2/3 validated cryptography. CJI appearing in a config file or log means encryption requirements are not being met
+- **Agency-managed keys (SC-12)**: CJIS requires that encryption keys for CJI be managed by the criminal justice agency, not the cloud provider. Detecting exposed CJI helps identify where this requirement applies
+- **Background check implications**: FBI numbers and SIDs link to criminal history records (CHRI) generated through fingerprint-based background checks — among the most sensitive categories of CJI
 
 ## Test Data
 
