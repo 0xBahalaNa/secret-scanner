@@ -14,16 +14,23 @@ This reduces false positives (a comment mentioning 'password' won't trigger)
 and catches more secret types with precise pattern matching.
 
 Usage:
-    python secret_scanner.py [directory] [--exit-zero] [--patterns FILE]
+    python secret_scanner.py [directory] [--exit-zero] [--patterns FILE] [--output json]
 
 If no directory is provided, defaults to test_configs/.
 """
 
 import argparse
+from datetime import datetime, timezone
 import json
 import re
 import sys
+import time
 from pathlib import Path
+
+# Scanner version — included in JSON output metadata so consumers can track
+# which version produced a given evidence artifact. Bump this when detection
+# capabilities change (new patterns, new output fields, etc.).
+SCANNER_VERSION = "0.5.0"
 
 
 def load_default_patterns():
@@ -213,6 +220,32 @@ def load_custom_patterns(patterns_file):
     return compiled
 
 
+# --- Control ID mapping ---
+# Maps each pattern name to the NIST 800-53 Rev 5 controls it addresses.
+# This is the bridge between "we found a secret" and "here's why it matters
+# to your compliance posture." When findings are exported as JSON, each
+# finding carries its control_ids — making the output directly usable in
+# compliance workflows (CA-2 assessment evidence, CA-7 continuous monitoring).
+#
+# CJI patterns additionally map to CJIS v6.0 controls. We use the NIST
+# control IDs since CJIS v6.0 aligns with 800-53 Rev 5 as of Dec 2024.
+CONTROL_MAP = {
+    "AWS Access Key ID": ["IA-5(7)", "SC-12", "SC-28"],
+    "AWS Secret Access Key": ["IA-5(7)", "SC-12", "SC-28"],
+    "AWS Session Token": ["IA-5(7)", "SC-12", "SC-28"],
+    "Password Assignment": ["IA-5(7)", "SC-28"],
+    "Secret Assignment": ["IA-5(7)", "SC-28"],
+    "API Key": ["IA-5(7)", "SC-12", "SC-28"],
+    "Private Key Header": ["IA-5(7)", "SC-12", "SC-28"],
+    "JWT Token": ["IA-5(7)", "SC-28"],
+    "Connection String": ["IA-5(7)", "SC-28"],
+    "CJI: ORI Number": ["SC-28", "SC-13"],
+    "CJI: NCIC Query Code": ["SC-28", "SC-13"],
+    "CJI: FBI Number": ["SC-28", "SC-13"],
+    "CJI: State ID (SID)": ["SC-28", "SC-13"],
+}
+
+
 # --- Argument parsing ---
 # argparse replaces manual sys.argv parsing. It handles --help automatically,
 # validates inputs, and makes adding new flags straightforward.
@@ -246,6 +279,19 @@ parser.add_argument(
     "--patterns",
     metavar="FILE",
     help="Path to a JSON file with additional detection patterns ({name: regex})",
+)
+
+# --output: choose an output format for scan results.
+# "json" writes a structured JSON file (scan_results.json) containing metadata,
+# individual findings with control IDs, and a summary. This is the foundation
+# for OSCAL evidence pipelines — machine-readable output that can be transformed
+# into OSCAL Assessment Results format (see: FedRAMP 20x requirements).
+# Console output still prints regardless so you get real-time feedback.
+parser.add_argument(
+    "--output",
+    choices=["json"],
+    metavar="FORMAT",
+    help="Output format for results file: 'json' writes scan_results.json",
 )
 
 args = parser.parse_args()
@@ -287,12 +333,31 @@ skipped_files = 0
 # Track unique directories encountered during recursion.
 directories_scanned = set()
 
+# Track total files scanned (not just files with findings).
+total_files_scanned = 0
+
+# Accumulator list for structured findings — each finding is a dict with
+# file_path, line_number, finding_type, pattern_matched, severity, and
+# control_ids. This is the accumulator pattern: start with an empty list,
+# append to it during the loop, then process the full list after the loop.
+# We collect findings regardless of --output mode — it's cheap and keeps
+# the scan loop clean (no conditional logic for output format).
+findings = []
+
+# Record the scan start time using time.time(), which returns a float of
+# seconds since the Unix epoch. We'll subtract this from the end time to
+# get scan duration. time.time() is in the time module (standard library,
+# docs.python.org/3/library/time.html).
+scan_start = time.time()
+
 # Iterates recursively through every file inside directory and its subdirectories.
 # is_file() filters out directories — without this, open() would fail on directories
 # and they'd be silently skipped, giving a misleading skipped_files count.
 for item in folder.rglob("*"):
     if not item.is_file():
         continue
+
+    total_files_scanned += 1
 
     # Record the parent directory so we can report how deep the scan went.
     directories_scanned.add(item.parent)
@@ -326,6 +391,20 @@ for item in folder.rglob("*"):
                         issues += 1
                         found_issue = True
 
+                        # Build a structured finding dict for JSON output.
+                        # control_ids comes from CONTROL_MAP; custom patterns
+                        # without a mapping get an empty list (safe default).
+                        # severity is null for now — issue #12 will add
+                        # severity classification logic.
+                        findings.append({
+                            "file_path": str(relative_path),
+                            "line_number": line_number,
+                            "finding_type": pattern_name,
+                            "pattern_matched": pattern_regex.pattern,
+                            "severity": None,
+                            "control_ids": CONTROL_MAP.get(pattern_name, []),
+                        })
+
     except UnicodeDecodeError:
         print(f"[SKIP] {relative_path}: The file type is not compatible.")
         skipped_files += 1
@@ -339,18 +418,80 @@ for item in folder.rglob("*"):
     if found_issue:
         files_with_issues.add(str(relative_path))
 
+# Calculate scan duration by subtracting start time from current time.
+# round() to 3 decimal places gives millisecond precision — more than
+# enough for a file scanner, and avoids ugly floating-point noise like
+# 0.0023456789012345.
+scan_duration = round(time.time() - scan_start, 3)
+
 # Print summary of the scan results, total number of alerts, and unique affected files.
 print("\n--- Scan Summary ---")
 print(f"Directories scanned: {len(directories_scanned)}")
+print(f"Files scanned: {total_files_scanned}")
 print(f"Total alerts: {issues}")
 print(f"Files with issues: {len(files_with_issues)}")
 print(f"Skipped files: {skipped_files}")
+print(f"Scan duration: {scan_duration}s")
 
 # List the relative paths of affected files so the user knows exactly where to look.
 if files_with_issues:
     print("Affected files:")
     for fname in sorted(files_with_issues):
         print(f" - {fname}")
+
+# --- JSON output ---
+# When --output json is specified, write a structured JSON file that can feed
+# into OSCAL evidence pipelines or compliance dashboards. The structure has
+# three sections:
+#   1. scan_metadata — who/what/when context for the scan
+#   2. findings — individual finding records with control mappings
+#   3. summary — aggregate counts for quick assessment
+#
+# This supports CA-2 (Control Assessments) by producing machine-readable
+# assessment evidence, and CA-7 (Continuous Monitoring) by enabling
+# automated trend analysis across scans.
+if args.output == "json":
+    # Build findings_by_type: a dict of {pattern_name: count}.
+    # This uses a simple loop instead of collections.Counter — both work,
+    # but the explicit loop is easier to follow when you're learning Python.
+    # Counter is worth knowing about though: it's in the collections module
+    # and does exactly this in one line (Counter(f["finding_type"] for f in findings)).
+    findings_by_type = {}
+    for finding in findings:
+        finding_type = finding["finding_type"]
+        findings_by_type[finding_type] = findings_by_type.get(finding_type, 0) + 1
+
+    # datetime.now(timezone.utc) returns the current time in UTC with timezone
+    # info attached. .isoformat() formats it as ISO 8601 (e.g.,
+    # "2026-03-19T14:30:00+00:00"), which is the standard for machine-readable
+    # timestamps. UTC avoids timezone ambiguity in compliance evidence —
+    # auditors in different timezones see the same time.
+    scan_results = {
+        "scan_metadata": {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "target_directory": str(folder),
+            "scanner_version": SCANNER_VERSION,
+            "duration_seconds": scan_duration,
+            "patterns_active": len(patterns),
+        },
+        "findings": findings,
+        "summary": {
+            "total_files_scanned": total_files_scanned,
+            "total_findings": len(findings),
+            "files_with_findings": len(files_with_issues),
+            "skipped_files": skipped_files,
+            "findings_by_type": findings_by_type,
+        },
+    }
+
+    output_file = "scan_results.json"
+    # json.dump() writes a Python dict to a file as JSON (PCC3e Ch 10).
+    # indent=2 makes it human-readable. ensure_ascii=False allows Unicode
+    # characters in file paths to render correctly instead of being escaped.
+    with open(output_file, "w") as f:
+        json.dump(scan_results, f, indent=2, ensure_ascii=False)
+
+    print(f"\nJSON results written to: {output_file}")
 
 # Exit with a non-zero code when secrets are found so CI/CD pipelines fail.
 # Without this, a pipeline step using this scanner would always "pass," meaning
