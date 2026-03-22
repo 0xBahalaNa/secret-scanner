@@ -38,6 +38,40 @@ CONTROL_MAP = {
 }
 
 
+# Severity levels for risk-based prioritization of findings.
+# Maps each pattern name to a severity string. This supports RA-3 (Risk
+# Assessment) by enabling analysts to triage findings based on impact:
+#
+#   CRITICAL — Immediate audit finding. Exposed cloud credentials or CJI
+#              in plaintext. Requires same-day remediation.
+#   HIGH     — Embedded credentials that enable unauthorized access.
+#              Connection strings and session tokens (JWTs) fall here.
+#   MEDIUM   — API keys where impact depends on what the key accesses.
+#              May be low-privilege or scoped, but still a finding.
+#   LOW      — Password/secret assignments. Often dev/test values, but
+#              still flagged because they indicate credential hygiene gaps.
+#   INFO     — Informational. Reserved for custom patterns or future use
+#              where context is needed but risk is minimal.
+#
+# Custom patterns without a SEVERITY_MAP entry default to "MEDIUM" — a
+# safe middle ground that ensures they're reviewed without over-alarming.
+SEVERITY_MAP = {
+    "AWS Access Key ID": "CRITICAL",
+    "AWS Secret Access Key": "CRITICAL",
+    "AWS Session Token": "CRITICAL",
+    "Private Key Header": "CRITICAL",
+    "CJI: ORI Number": "CRITICAL",
+    "CJI: NCIC Query Code": "CRITICAL",
+    "CJI: FBI Number": "CRITICAL",
+    "CJI: State ID (SID)": "CRITICAL",
+    "Connection String": "HIGH",
+    "JWT Token": "HIGH",
+    "API Key": "MEDIUM",
+    "Password Assignment": "LOW",
+    "Secret Assignment": "LOW",
+}
+
+
 def load_all_patterns():
     """Load and merge all built-in detection patterns.
 

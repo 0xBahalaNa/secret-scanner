@@ -33,13 +33,17 @@ def write_json_report(scan_result, output_file, scanner_version, folder,
         folder: The scanned directory path (for metadata).
         patterns_active: Number of active patterns (for metadata).
     """
-    # Build findings_by_type: a dict of {pattern_name: count}.
-    # This uses a simple loop instead of collections.Counter — both work,
+    # Build findings_by_type and findings_by_severity: dicts of {key: count}.
+    # These use simple loops instead of collections.Counter — both work,
     # but the explicit loop is easier to follow when you're learning Python.
     findings_by_type = {}
+    findings_by_severity = {}
     for finding in scan_result["findings"]:
         finding_type = finding["finding_type"]
         findings_by_type[finding_type] = findings_by_type.get(finding_type, 0) + 1
+
+        severity = finding["severity"]
+        findings_by_severity[severity] = findings_by_severity.get(severity, 0) + 1
 
     # datetime.now(timezone.utc) returns the current time in UTC with timezone
     # info attached. .isoformat() formats it as ISO 8601 (e.g.,
@@ -60,6 +64,7 @@ def write_json_report(scan_result, output_file, scanner_version, folder,
             "files_with_findings": scan_result["files_with_findings"],
             "skipped_files": scan_result["skipped_files"],
             "findings_by_type": findings_by_type,
+            "findings_by_severity": findings_by_severity,
         },
     }
 
