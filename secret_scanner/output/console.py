@@ -7,20 +7,23 @@ know how results are displayed — it just returns data.
 """
 
 
-def print_alert(relative_path, line_number, pattern_name):
+def print_alert(relative_path, line_number, pattern_name, severity):
     """Print a single finding alert to the console.
 
-    Format: [ALERT] path/to/file:line_number — Pattern Name
+    Format: [SEVERITY] path/to/file:line_number — Pattern Name
 
-    The path:line_number format is deliberate — many editors and terminals
-    make this clickable, jumping directly to the finding location.
+    The severity level replaces the generic [ALERT] tag so analysts can
+    visually scan output for CRITICAL findings. The path:line_number
+    format is deliberate — many editors and terminals make this clickable,
+    jumping directly to the finding location.
 
     Args:
         relative_path: File path relative to the scan root.
         line_number: 1-indexed line number where the pattern matched.
         pattern_name: Human-readable name of the matched pattern.
+        severity: Severity level string (CRITICAL, HIGH, MEDIUM, LOW, INFO).
     """
-    print(f"[ALERT] {relative_path}:{line_number} — {pattern_name}")
+    print(f"[{severity}] {relative_path}:{line_number} — {pattern_name}")
 
 
 def print_skip(relative_path, reason):
@@ -36,6 +39,10 @@ def print_skip(relative_path, reason):
 def print_summary(scan_result):
     """Print the final scan summary to the console.
 
+    Includes a severity breakdown so analysts get an at-a-glance risk
+    picture. This supports RA-3 (Risk Assessment) by surfacing how many
+    findings fall into each severity tier.
+
     Args:
         scan_result: A dict containing scan results with keys:
             - directories_scanned: int
@@ -45,6 +52,7 @@ def print_summary(scan_result):
             - skipped_files: int
             - scan_duration: float (seconds)
             - affected_files: sorted list of relative path strings
+            - findings: list of finding dicts (each with "severity" key)
     """
     print("\n--- Scan Summary ---")
     print(f"Directories scanned: {scan_result['directories_scanned']}")
@@ -53,6 +61,22 @@ def print_summary(scan_result):
     print(f"Files with issues: {scan_result['files_with_findings']}")
     print(f"Skipped files: {scan_result['skipped_files']}")
     print(f"Scan duration: {scan_result['scan_duration']}s")
+
+    # Severity breakdown: count findings by severity level.
+    # Uses dict.get() with a default of 0 (PCC3e Ch 6: Dictionaries).
+    # The severity order is fixed (CRITICAL first) so the output is
+    # always consistent regardless of which severities appear.
+    if scan_result["findings"]:
+        severity_counts = {}
+        for finding in scan_result["findings"]:
+            sev = finding["severity"]
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+        print("Severity breakdown:")
+        for level in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]:
+            count = severity_counts.get(level, 0)
+            if count > 0:
+                print(f"  {level}: {count}")
 
     if scan_result["affected_files"]:
         print("Affected files:")

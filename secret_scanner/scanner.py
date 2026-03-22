@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 from .output.console import print_alert, print_skip
-from .patterns import CONTROL_MAP
+from .patterns import CONTROL_MAP, SEVERITY_MAP
 
 # Resource limits to prevent the scanner from consuming excessive memory
 # on unusually large files. Config files and source code are typically
@@ -122,7 +122,8 @@ def scan(directory, patterns):
 
                     for pattern_name, pattern_regex in patterns.items():
                         if pattern_regex.search(line):
-                            print_alert(relative_path, line_number, pattern_name)
+                            severity = SEVERITY_MAP.get(pattern_name, "MEDIUM")
+                            print_alert(relative_path, line_number, pattern_name, severity)
                             found_issue = True
 
                             findings.append({
@@ -130,7 +131,7 @@ def scan(directory, patterns):
                                 "line_number": line_number,
                                 "finding_type": pattern_name,
                                 "pattern_matched": pattern_regex.pattern,
-                                "severity": None,
+                                "severity": severity,
                                 "control_ids": CONTROL_MAP.get(pattern_name, []),
                             })
 
