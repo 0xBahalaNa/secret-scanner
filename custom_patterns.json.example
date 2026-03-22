@@ -1,4 +1,7 @@
 {
+    "_comment": "Custom detection patterns. Each key is a pattern name, each value is a regex string.",
+    "_warning": "Avoid regex with nested quantifiers like (a+)+ or (a|b)*c* — these can cause catastrophic backtracking (ReDoS) and hang the scanner. Use possessive quantifiers or simple character classes instead. See: https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS",
+
     "Slack Bot Token": "xoxb-[0-9A-Za-z-]{10,}",
     "GitHub PAT (Classic)": "ghp_[A-Za-z0-9]{36}",
     "Stripe Secret Key": "sk_live_[A-Za-z0-9]{24,}"
