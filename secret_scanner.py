@@ -14,7 +14,7 @@ This reduces false positives (a comment mentioning 'password' won't trigger)
 and catches more secret types with precise pattern matching.
 
 Usage:
-    python secret_scanner.py [directory] [--exit-zero] [--patterns FILE] [--output json]
+    python secret_scanner.py [directory] [--exit-zero] [--patterns FILE] [--output json] [--output-file PATH]
 
 If no directory is provided, defaults to test_configs/.
 """
@@ -30,7 +30,16 @@ from pathlib import Path
 # Scanner version — included in JSON output metadata so consumers can track
 # which version produced a given evidence artifact. Bump this when detection
 # capabilities change (new patterns, new output fields, etc.).
-SCANNER_VERSION = "0.5.0"
+SCANNER_VERSION = "0.6.0"
+
+# Resource limits to prevent the scanner from consuming excessive memory
+# on unusually large files. Config files and source code are typically
+# well under these thresholds — anything larger is likely a binary file
+# that passed UTF-8 decoding or a data dump that shouldn't be scanned.
+# These limits address SC-5 (Denial of Service Protection): a compliance
+# tool in a CA-7 continuous monitoring pipeline must not be OOM-killable.
+MAX_FILE_SIZE = 10 * 1024 * 1024    # 10 MB — skip files larger than this
+MAX_LINE_LENGTH = 1 * 1024 * 1024   # 1 MB — skip individual lines longer than this
 
 
 def load_default_patterns():
@@ -291,7 +300,20 @@ parser.add_argument(
     "--output",
     choices=["json"],
     metavar="FORMAT",
-    help="Output format for results file: 'json' writes scan_results.json",
+    help="Output format for results file: 'json' writes structured JSON (see --output-file)",
+)
+
+# --output-file: control where JSON results are written.
+# Defaults to scan_results.json. This prevents silent overwrites of
+# existing files and supports CI/CD pipelines that need timestamped or
+# run-specific output filenames (e.g., scan_results_2026-03-22.json).
+# Addresses AU-9 (Protection of Audit Information): previous scan results
+# should not be silently destroyed.
+parser.add_argument(
+    "--output-file",
+    default="scan_results.json",
+    metavar="PATH",
+    help="Path for JSON output file (default: scan_results.json). Requires --output json.",
 )
 
 args = parser.parse_args()
@@ -318,6 +340,13 @@ if args.patterns:
     custom = load_custom_patterns(args.patterns)
     print(f"Loaded {len(custom)} custom pattern(s) from {args.patterns}")
     patterns.update(custom)
+
+# Resolve the scan root to an absolute path with symlinks resolved.
+# We'll compare each file's resolved path against this to ensure we
+# never read files outside the target directory (symlink escape defense).
+# This addresses AC-6 (Least Privilege): the scanner should only access
+# files within its authorized scope.
+resolved_root = folder.resolve()
 
 print(f"Scanning folder: {folder}")
 print(f"Active patterns: {len(patterns)}")
@@ -357,6 +386,17 @@ for item in folder.rglob("*"):
     if not item.is_file():
         continue
 
+    # Symlink escape check: resolve the file to its real absolute path
+    # and verify it's still under the scan root. A symlink pointing to
+    # /etc/shadow or another file outside the target directory would
+    # resolve to a path that doesn't start with resolved_root — skip it.
+    # This is the standard defense against path traversal via symlinks.
+    resolved_item = item.resolve()
+    if not str(resolved_item).startswith(str(resolved_root)):
+        print(f"[SKIP] {item}: Symlink points outside scan directory.")
+        skipped_files += 1
+        continue
+
     total_files_scanned += 1
 
     # Record the parent directory so we can report how deep the scan went.
@@ -365,6 +405,23 @@ for item in folder.rglob("*"):
     # Build the display path relative to the scan root (e.g., "nested/test.json"
     # instead of just "test.json") so findings in subdirectories are identifiable.
     relative_path = item.relative_to(folder)
+
+    # File size check: skip files larger than MAX_FILE_SIZE. This prevents
+    # the scanner from attempting to read huge files that are almost certainly
+    # not config files (e.g., database dumps, log archives, large binaries
+    # that happen to pass UTF-8 decoding). item.stat() returns file metadata
+    # without reading the file — st_size is the size in bytes.
+    try:
+        file_size = item.stat().st_size
+    except OSError:
+        print(f"[SKIP] {relative_path}: Could not read file metadata.")
+        skipped_files += 1
+        continue
+
+    if file_size > MAX_FILE_SIZE:
+        print(f"[SKIP] {relative_path}: File exceeds {MAX_FILE_SIZE // (1024 * 1024)}MB size limit.")
+        skipped_files += 1
+        continue
 
     # Track whether any alert was triggered for this file.
     found_issue = False
@@ -377,6 +434,12 @@ for item in folder.rglob("*"):
     try:
         with open(item, "r") as f:
             for line_number, line in enumerate(f, start=1):
+                # Skip extremely long lines (e.g., minified JS/JSON). A line
+                # over MAX_LINE_LENGTH is unlikely to be a config assignment and
+                # running regex against it wastes memory and CPU.
+                if len(line) > MAX_LINE_LENGTH:
+                    continue
+
                 # Loop over every pattern and check if it matches this line.
                 # This replaces the old three separate if-blocks. Adding a new
                 # secret type now means adding one line to PATTERNS — the scan
@@ -484,7 +547,19 @@ if args.output == "json":
         },
     }
 
-    output_file = "scan_results.json"
+    # Use the --output-file flag value (defaults to "scan_results.json").
+    # This replaces the old hardcoded filename so users can control where
+    # results go — important for CI/CD pipelines that need run-specific
+    # filenames and for avoiding silent overwrites of previous evidence.
+    output_file = Path(args.output_file)
+
+    # Warn if the output file already exists. We don't block the write
+    # (the user asked for output, so we deliver it), but the warning
+    # makes the overwrite visible rather than silent. In audit terms,
+    # this supports AU-9: protection of audit information.
+    if output_file.exists():
+        print(f"\n[WARN] Output file already exists and will be overwritten: {output_file}")
+
     # json.dump() writes a Python dict to a file as JSON (PCC3e Ch 10).
     # indent=2 makes it human-readable. ensure_ascii=False allows Unicode
     # characters in file paths to render correctly instead of being escaped.
