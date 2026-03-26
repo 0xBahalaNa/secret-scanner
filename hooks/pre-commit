@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Standalone pre-commit hook for secret_scanner.
+#
+# This script runs the secret scanner against only the files staged for
+# commit (git add). It's an alternative to the pre-commit framework for
+# teams that want a simple, dependency-free git hook.
+#
+# Install with:
+#   cp hooks/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# Or use: make install-hooks
+#
+# How it works:
+#   1. git diff --cached --name-only gets the list of staged files
+#   2. --diff-filter=ACM limits to Added, Copied, or Modified files
+#      (deleted files would fail when the scanner tries to read them)
+#   3. The file list is passed to the scanner via --files
+#   4. If secrets are found, the commit is blocked (exit code 1)
+#
+# Controls addressed:
+#   CM-3: Configuration Change Control — prevents secrets from entering VCS
+#   SA-11: Developer Testing — automated testing at commit time
+
+# Get staged files that are text-based (added, copied, or modified).
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+# If no files are staged, nothing to scan — allow the commit.
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+
+# Run the scanner against only the staged files.
+# shellcheck disable=SC2086
+python -m secret_scanner --files $STAGED_FILES

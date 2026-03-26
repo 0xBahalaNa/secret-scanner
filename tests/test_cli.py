@@ -75,6 +75,20 @@ def test_parser_patterns_flag():
     assert args.patterns == "custom.json"
 
 
+def test_parser_files_flag():
+    """--files should accept one or more file paths."""
+    parser = build_parser()
+    args = parser.parse_args(["--files", "a.txt", "b.txt", "c.txt"])
+    assert args.files == ["a.txt", "b.txt", "c.txt"]
+
+
+def test_parser_files_default():
+    """files should default to None."""
+    parser = build_parser()
+    args = parser.parse_args([])
+    assert args.files is None
+
+
 def test_parser_all_flags_combined():
     """All flags should work together without conflict."""
     parser = build_parser()
@@ -142,3 +156,30 @@ def test_exit_code_1_on_nonexistent_directory():
     )
     assert result.returncode == 1
     assert "[ERROR]" in result.stderr or "[ERROR]" in result.stdout
+
+
+def test_files_flag_finds_secrets(tmp_path):
+    """--files should scan only the specified files and exit 1 on findings."""
+    import subprocess
+    config = tmp_path / "secret.txt"
+    config.write_text("AKIAIOSFODNN7EXAMPLE")
+
+    result = subprocess.run(
+        ["python", "-m", "secret_scanner", "--files", str(config)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 1
+    assert "CRITICAL" in result.stdout
+
+
+def test_files_flag_clean_exit_0(tmp_path):
+    """--files with clean files should exit 0."""
+    import subprocess
+    config = tmp_path / "clean.txt"
+    config.write_text("nothing secret here")
+
+    result = subprocess.run(
+        ["python", "-m", "secret_scanner", "--files", str(config)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0

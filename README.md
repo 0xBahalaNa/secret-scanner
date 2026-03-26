@@ -49,25 +49,25 @@ CJI patterns address CJIS Security Policy v6.0 requirements: CJI must never appe
 Scan the default `test_configs/` directory:
 
 ```bash
-python secret_scanner.py
+python -m secret_scanner
 ```
 
 Scan a specific directory:
 
 ```bash
-python secret_scanner.py /path/to/configs
+python -m secret_scanner /path/to/configs
 ```
 
 Run in informational mode (always exit 0, even if secrets are found):
 
 ```bash
-python secret_scanner.py /path/to/configs --exit-zero
+python -m secret_scanner /path/to/configs --exit-zero
 ```
 
 Load additional detection patterns from a JSON file:
 
 ```bash
-python secret_scanner.py /path/to/configs --patterns custom_patterns.json
+python -m secret_scanner /path/to/configs --patterns custom_patterns.json
 ```
 
 The patterns file should be a flat JSON object of `{"pattern_name": "regex_string"}`:
@@ -84,7 +84,7 @@ Custom patterns are merged with the built-in defaults. If a custom pattern has t
 Export findings as structured JSON for evidence pipelines:
 
 ```bash
-python secret_scanner.py /path/to/configs --output json
+python -m secret_scanner /path/to/configs --output json
 ```
 
 This writes `scan_results.json` with three sections:
@@ -97,7 +97,7 @@ See [`examples/sample_output.json`](examples/sample_output.json) for the full sc
 View all options:
 
 ```bash
-python secret_scanner.py --help
+python -m secret_scanner --help
 ```
 
 ## Exit Codes
@@ -108,6 +108,51 @@ python secret_scanner.py --help
 | `1`  | Secrets detected (default behavior) |
 
 In a CI/CD pipeline, the non-zero exit code will cause the step to fail, blocking merges that contain exposed secrets.
+
+## Pre-commit Integration
+
+The scanner can run as a pre-commit hook, catching secrets before they enter version control. This is the highest-value use case — a preventive control at the earliest CI/CD pipeline gate (CM-3: Configuration Change Control).
+
+### Option 1: Pre-commit Framework
+
+If your team uses the [pre-commit framework](https://pre-commit.com), add this to your `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/0xBahalaNa/secret-scanner
+    rev: main
+    hooks:
+      - id: secret-scanner
+```
+
+The framework automatically passes only staged files to the scanner.
+
+### Option 2: Standalone Git Hook
+
+For a dependency-free setup, install the bundled hook script:
+
+```bash
+make install-hooks
+```
+
+Or manually:
+
+```bash
+cp hooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+The standalone hook uses `git diff --cached --name-only --diff-filter=ACM` to scan only staged files that are added, copied, or modified.
+
+### Scanning Specific Files
+
+Both hook options use the `--files` flag, which you can also use directly:
+
+```bash
+python -m secret_scanner --files config.json terraform.tf
+```
+
+This scans only the specified files instead of recursing a directory.
 
 ## Compliance Controls Addressed
 

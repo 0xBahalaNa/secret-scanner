@@ -1,0 +1,25 @@
+# Pre-commit framework hook definition for secret_scanner.
+#
+# This file tells the pre-commit framework how to run this scanner.
+# Users add this repo to their .pre-commit-config.yaml like:
+#
+#   repos:
+#     - repo: https://github.com/0xBahalaNa/secret-scanner
+#       rev: main
+#       hooks:
+#         - id: secret-scanner
+#
+# The pre-commit framework automatically passes only staged files to the
+# hook via the positional arguments, which we receive through --files.
+# This means only files being committed are scanned — not the entire repo.
+#
+# Controls addressed:
+#   CM-3: Configuration Change Control — prevents secrets from entering VCS
+#   SA-11: Developer Testing — automated testing at commit time
+
+- id: secret-scanner
+  name: Secret Scanner
+  description: Scan staged files for secrets, credentials, and CJI data
+  entry: python -m secret_scanner --files
+  language: python
+  types: [text]
