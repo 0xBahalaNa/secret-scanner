@@ -1,12 +1,15 @@
 """Core scanning logic for the secret scanner.
 
-This module contains the scan() function — the heart of the scanner. It
-takes a directory and a set of patterns, iterates through every file
-recursively, and returns structured results. The scan logic is separated
-from CLI parsing and output formatting so it can be:
+This module contains two scan functions:
+  - scan(directory, patterns) — recursively scans all files in a directory
+  - scan_files(file_paths, patterns) — scans a specific list of files
+
+The scan logic is separated from CLI parsing and output formatting so it
+can be:
   1. Called from the CLI (python -m secret_scanner)
-  2. Imported into other Python scripts (from secret_scanner.scanner import scan)
-  3. Tested in isolation (test_scanner.py)
+  2. Used as a pre-commit hook (python -m secret_scanner --files ...)
+  3. Imported into other Python scripts (from secret_scanner.scanner import scan)
+  4. Tested in isolation (test_scanner.py)
 
 This separation of concerns is the primary goal of the modular refactor.
 """
@@ -149,6 +152,112 @@ def scan(directory, patterns):
 
         if found_issue:
             files_with_issues.add(str(relative_path))
+
+    scan_duration = round(time.time() - scan_start, 3)
+
+    return {
+        "findings": findings,
+        "total_files_scanned": total_files_scanned,
+        "total_findings": len(findings),
+        "files_with_findings": len(files_with_issues),
+        "skipped_files": skipped_files,
+        "directories_scanned": len(directories_scanned),
+        "scan_duration": scan_duration,
+        "affected_files": sorted(files_with_issues),
+    }
+
+
+def scan_files(file_paths, patterns):
+    """Scan a specific list of files for secrets matching the given patterns.
+
+    This is the function used by pre-commit hooks, where only staged files
+    should be scanned — not the entire directory. It applies the same
+    pattern matching and error handling as scan(), but iterates over an
+    explicit list of file paths instead of recursing a directory.
+
+    No symlink escape check is performed here because the caller (the
+    pre-commit framework or the standalone hook script) controls which
+    files are passed. The file size and line length limits still apply.
+
+    Args:
+        file_paths: List of path strings to scan.
+        patterns: Dict of {name: compiled regex} patterns to match against.
+
+    Returns:
+        A dict with the same structure as scan() — findings, counts, etc.
+    """
+    findings = []
+    files_with_issues = set()
+    skipped_files = 0
+    directories_scanned = set()
+    total_files_scanned = 0
+
+    scan_start = time.time()
+
+    for file_path_str in file_paths:
+        item = Path(file_path_str)
+
+        if not item.is_file():
+            print_skip(file_path_str, "Not a file or does not exist.")
+            skipped_files += 1
+            continue
+
+        total_files_scanned += 1
+        directories_scanned.add(item.parent)
+
+        # File size check.
+        try:
+            file_size = item.stat().st_size
+        except OSError:
+            print_skip(file_path_str, "Could not read file metadata.")
+            skipped_files += 1
+            continue
+
+        if file_size > MAX_FILE_SIZE:
+            print_skip(
+                file_path_str,
+                f"File exceeds {MAX_FILE_SIZE // (1024 * 1024)}MB size limit."
+            )
+            skipped_files += 1
+            continue
+
+        found_issue = False
+
+        try:
+            with open(item, "r") as f:
+                for line_number, line in enumerate(f, start=1):
+                    if len(line) > MAX_LINE_LENGTH:
+                        continue
+
+                    for pattern_name, pattern_regex in patterns.items():
+                        if pattern_regex.search(line):
+                            severity = SEVERITY_MAP.get(pattern_name, "MEDIUM")
+                            print_alert(file_path_str, line_number, pattern_name, severity)
+                            found_issue = True
+
+                            findings.append({
+                                "file_path": file_path_str,
+                                "line_number": line_number,
+                                "finding_type": pattern_name,
+                                "pattern_matched": pattern_regex.pattern,
+                                "severity": severity,
+                                "control_ids": CONTROL_MAP.get(pattern_name, []),
+                            })
+
+        except UnicodeDecodeError:
+            print_skip(file_path_str, "The file type is not compatible.")
+            skipped_files += 1
+            continue
+        except PermissionError:
+            print_skip(
+                file_path_str,
+                "You do not have the necessary permissions for this file."
+            )
+            skipped_files += 1
+            continue
+
+        if found_issue:
+            files_with_issues.add(file_path_str)
 
     scan_duration = round(time.time() - scan_start, 3)
 

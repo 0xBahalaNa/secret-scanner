@@ -14,7 +14,7 @@ the scan root, and large files that exceed the size limit.
 import os
 
 from secret_scanner.patterns import load_all_patterns
-from secret_scanner.scanner import scan, MAX_FILE_SIZE
+from secret_scanner.scanner import scan, scan_files, MAX_FILE_SIZE
 
 
 def test_scan_finds_aws_key(tmp_path):
@@ -217,3 +217,90 @@ def test_scan_finding_has_all_fields(tmp_path):
         "pattern_matched", "severity", "control_ids",
     }
     assert set(finding.keys()) == expected_fields
+
+
+# --- scan_files() tests ---
+
+def test_scan_files_finds_secret(tmp_path):
+    """scan_files should detect secrets in the specified files."""
+    config = tmp_path / "config.json"
+    config.write_text('{"aws_access_key_id": "AKIAIOSFODNN7EXAMPLE"}')
+
+    patterns = load_all_patterns()
+    result = scan_files([str(config)], patterns)
+
+    assert result["total_findings"] == 1
+    assert result["findings"][0]["finding_type"] == "AWS Access Key ID"
+
+
+def test_scan_files_clean_file(tmp_path):
+    """scan_files should produce zero findings for a clean file."""
+    config = tmp_path / "clean.json"
+    config.write_text('{"app_name": "test"}')
+
+    patterns = load_all_patterns()
+    result = scan_files([str(config)], patterns)
+
+    assert result["total_findings"] == 0
+    assert result["total_files_scanned"] == 1
+
+
+def test_scan_files_multiple_files(tmp_path):
+    """scan_files should scan all specified files."""
+    secret = tmp_path / "secret.txt"
+    secret.write_text("AKIAIOSFODNN7EXAMPLE")
+    clean = tmp_path / "clean.txt"
+    clean.write_text("nothing here")
+
+    patterns = load_all_patterns()
+    result = scan_files([str(secret), str(clean)], patterns)
+
+    assert result["total_files_scanned"] == 2
+    assert result["total_findings"] == 1
+    assert result["files_with_findings"] == 1
+
+
+def test_scan_files_nonexistent_skipped(tmp_path):
+    """scan_files should skip files that don't exist."""
+    patterns = load_all_patterns()
+    result = scan_files(["/nonexistent/file.txt"], patterns)
+
+    assert result["skipped_files"] == 1
+    assert result["total_files_scanned"] == 0
+
+
+def test_scan_files_binary_skipped(tmp_path):
+    """scan_files should skip binary files."""
+    binary = tmp_path / "image.png"
+    binary.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\xff" * 100)
+
+    patterns = load_all_patterns()
+    result = scan_files([str(binary)], patterns)
+
+    assert result["skipped_files"] == 1
+    assert result["total_findings"] == 0
+
+
+def test_scan_files_empty_list():
+    """scan_files with an empty list should return zero counts."""
+    patterns = load_all_patterns()
+    result = scan_files([], patterns)
+
+    assert result["total_files_scanned"] == 0
+    assert result["total_findings"] == 0
+
+
+def test_scan_files_result_has_all_keys(tmp_path):
+    """scan_files result should have the same structure as scan()."""
+    config = tmp_path / "test.txt"
+    config.write_text("clean content")
+
+    patterns = load_all_patterns()
+    result = scan_files([str(config)], patterns)
+
+    expected_keys = {
+        "findings", "total_files_scanned", "total_findings",
+        "files_with_findings", "skipped_files", "directories_scanned",
+        "scan_duration", "affected_files",
+    }
+    assert set(result.keys()) == expected_keys

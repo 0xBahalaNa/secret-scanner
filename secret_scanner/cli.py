@@ -7,8 +7,10 @@ scanner can be imported and used as a library without argparse being involved.
 
 Usage:
     python -m secret_scanner [directory] [--exit-zero] [--patterns FILE] [--output json] [--output-file PATH]
+    python -m secret_scanner --files FILE [FILE ...] [--exit-zero]
 
 If no directory is provided, defaults to test_configs/.
+Use --files to scan specific files (e.g., from a pre-commit hook).
 """
 
 import argparse
@@ -20,7 +22,7 @@ from .output.console import print_summary
 from .output.json_report import write_json_report
 from .patterns import load_all_patterns
 from .patterns.custom import load as load_custom_patterns
-from .scanner import scan
+from .scanner import scan, scan_files
 
 
 def build_parser():
@@ -81,6 +83,17 @@ def build_parser():
         help="Path for JSON output file (default: scan_results.json). Requires --output json.",
     )
 
+    # --files: scan specific files instead of a directory.
+    # Used by pre-commit hooks where only staged files should be scanned.
+    # nargs="+" means "one or more arguments" — at least one file is required.
+    # The pre-commit framework appends staged file paths after this flag.
+    parser.add_argument(
+        "--files",
+        nargs="+",
+        metavar="FILE",
+        help="Scan specific files instead of a directory (used by pre-commit hooks)",
+    )
+
     return parser
 
 
@@ -93,16 +106,6 @@ def main():
     """
     parser = build_parser()
     args = parser.parse_args()
-    folder = Path(args.directory)
-
-    # Validate that the path exists and is a directory before scanning.
-    if not folder.exists():
-        print(f"[ERROR] Path does not exist: {folder}")
-        sys.exit(1)
-
-    if not folder.is_dir():
-        print(f"[ERROR] Path is not a directory: {folder}")
-        sys.exit(1)
 
     # Build the pattern set: start with built-in, then merge custom.
     patterns = load_all_patterns()
@@ -112,11 +115,31 @@ def main():
         print(f"Loaded {len(custom)} custom pattern(s) from {args.patterns}")
         patterns.update(custom)
 
-    print(f"Scanning folder: {folder}")
-    print(f"Active patterns: {len(patterns)}")
+    # Two scan modes: --files for specific files (pre-commit hooks),
+    # or directory mode (default) for recursive scanning.
+    if args.files:
+        # File mode: scan only the specified files. Used by pre-commit
+        # hooks where only staged files should be scanned for performance.
+        print(f"Scanning {len(args.files)} file(s)")
+        print(f"Active patterns: {len(patterns)}")
+        result = scan_files(args.files, patterns)
+        scan_target = "staged files"
+    else:
+        # Directory mode: scan all files recursively.
+        folder = Path(args.directory)
 
-    # Run the scan — this is where the actual work happens.
-    result = scan(folder, patterns)
+        if not folder.exists():
+            print(f"[ERROR] Path does not exist: {folder}")
+            sys.exit(1)
+
+        if not folder.is_dir():
+            print(f"[ERROR] Path is not a directory: {folder}")
+            sys.exit(1)
+
+        print(f"Scanning folder: {folder}")
+        print(f"Active patterns: {len(patterns)}")
+        result = scan(folder, patterns)
+        scan_target = str(folder)
 
     # Print human-readable summary to console.
     print_summary(result)
@@ -127,7 +150,7 @@ def main():
             scan_result=result,
             output_file=args.output_file,
             scanner_version=__version__,
-            folder=folder,
+            folder=scan_target,
             patterns_active=len(patterns),
         )
 
