@@ -70,6 +70,7 @@ def scan(directory, patterns):
     skipped_files = 0
     directories_scanned = set()
     total_files_scanned = 0
+    total_bytes_scanned = 0
 
     scan_start = time.time()
 
@@ -110,6 +111,10 @@ def scan(directory, patterns):
             )
             skipped_files += 1
             continue
+
+        # Accumulate bytes for throughput metrics. Only counts files that
+        # pass all pre-scan checks (not skipped for size, symlink, etc.).
+        total_bytes_scanned += file_size
 
         found_issue = False
 
@@ -155,6 +160,12 @@ def scan(directory, patterns):
 
     scan_duration = round(time.time() - scan_start, 3)
 
+    # Throughput metrics: files per second and bytes per second.
+    # Guard against zero-division when scan completes in under 1ms
+    # (common for small test directories).
+    files_per_second = round(total_files_scanned / scan_duration, 1) if scan_duration > 0 else 0
+    bytes_per_second = round(total_bytes_scanned / scan_duration, 1) if scan_duration > 0 else 0
+
     return {
         "findings": findings,
         "total_files_scanned": total_files_scanned,
@@ -163,6 +174,9 @@ def scan(directory, patterns):
         "skipped_files": skipped_files,
         "directories_scanned": len(directories_scanned),
         "scan_duration": scan_duration,
+        "total_bytes_scanned": total_bytes_scanned,
+        "files_per_second": files_per_second,
+        "bytes_per_second": bytes_per_second,
         "affected_files": sorted(files_with_issues),
     }
 
@@ -191,6 +205,7 @@ def scan_files(file_paths, patterns):
     skipped_files = 0
     directories_scanned = set()
     total_files_scanned = 0
+    total_bytes_scanned = 0
 
     scan_start = time.time()
 
@@ -220,6 +235,8 @@ def scan_files(file_paths, patterns):
             )
             skipped_files += 1
             continue
+
+        total_bytes_scanned += file_size
 
         found_issue = False
 
@@ -260,6 +277,8 @@ def scan_files(file_paths, patterns):
             files_with_issues.add(file_path_str)
 
     scan_duration = round(time.time() - scan_start, 3)
+    files_per_second = round(total_files_scanned / scan_duration, 1) if scan_duration > 0 else 0
+    bytes_per_second = round(total_bytes_scanned / scan_duration, 1) if scan_duration > 0 else 0
 
     return {
         "findings": findings,
@@ -269,5 +288,8 @@ def scan_files(file_paths, patterns):
         "skipped_files": skipped_files,
         "directories_scanned": len(directories_scanned),
         "scan_duration": scan_duration,
+        "total_bytes_scanned": total_bytes_scanned,
+        "files_per_second": files_per_second,
+        "bytes_per_second": bytes_per_second,
         "affected_files": sorted(files_with_issues),
     }

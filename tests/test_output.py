@@ -54,6 +54,9 @@ def test_print_summary_content(capsys):
         "files_with_findings": 2,
         "skipped_files": 1,
         "scan_duration": 0.042,
+        "total_bytes_scanned": 5120,
+        "files_per_second": 238.1,
+        "bytes_per_second": 121904.8,
         "affected_files": ["config.json", "secrets.env"],
         "findings": [
             {"severity": "CRITICAL"},
@@ -85,6 +88,9 @@ def test_print_summary_severity_breakdown(capsys):
         "files_with_findings": 1,
         "skipped_files": 0,
         "scan_duration": 0.001,
+        "total_bytes_scanned": 256,
+        "files_per_second": 1000.0,
+        "bytes_per_second": 256000.0,
         "affected_files": ["test.txt"],
         "findings": [
             {"severity": "CRITICAL"},
@@ -108,6 +114,9 @@ def test_print_summary_no_findings(capsys):
         "files_with_findings": 0,
         "skipped_files": 0,
         "scan_duration": 0.001,
+        "total_bytes_scanned": 100,
+        "files_per_second": 1000.0,
+        "bytes_per_second": 100000.0,
         "affected_files": [],
         "findings": [],
     }
