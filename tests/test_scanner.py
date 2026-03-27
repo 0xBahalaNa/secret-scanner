@@ -187,7 +187,8 @@ def test_scan_result_has_all_keys(tmp_path):
     expected_keys = {
         "findings", "total_files_scanned", "total_findings",
         "files_with_findings", "skipped_files", "directories_scanned",
-        "scan_duration", "affected_files",
+        "scan_duration", "total_bytes_scanned", "files_per_second",
+        "bytes_per_second", "affected_files",
     }
     assert set(result.keys()) == expected_keys
 
@@ -301,6 +302,7 @@ def test_scan_files_result_has_all_keys(tmp_path):
     expected_keys = {
         "findings", "total_files_scanned", "total_findings",
         "files_with_findings", "skipped_files", "directories_scanned",
-        "scan_duration", "affected_files",
+        "scan_duration", "total_bytes_scanned", "files_per_second",
+        "bytes_per_second", "affected_files",
     }
     assert set(result.keys()) == expected_keys

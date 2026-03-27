@@ -7,6 +7,27 @@ know how results are displayed — it just returns data.
 """
 
 
+def _format_bytes(num_bytes):
+    """Format a byte count as a human-readable string (e.g., 1.2 KB, 3.4 MB).
+
+    Uses 1024-based units (KiB convention but labeled KB/MB for readability).
+    This is a private helper — the underscore prefix is a Python convention
+    meaning "internal to this module, not part of the public API."
+
+    Args:
+        num_bytes: Integer or float byte count.
+
+    Returns:
+        A formatted string like "1.2 KB" or "3.4 MB".
+    """
+    if num_bytes < 1024:
+        return f"{num_bytes} B"
+    elif num_bytes < 1024 * 1024:
+        return f"{num_bytes / 1024:.1f} KB"
+    else:
+        return f"{num_bytes / (1024 * 1024):.1f} MB"
+
+
 def print_alert(relative_path, line_number, pattern_name, severity):
     """Print a single finding alert to the console.
 
@@ -61,6 +82,15 @@ def print_summary(scan_result):
     print(f"Files with issues: {scan_result['files_with_findings']}")
     print(f"Skipped files: {scan_result['skipped_files']}")
     print(f"Scan duration: {scan_result['scan_duration']}s")
+
+    # Performance metrics: bytes scanned and throughput.
+    # _format_bytes converts raw byte counts to human-readable units.
+    total_bytes = scan_result.get("total_bytes_scanned", 0)
+    print(f"Bytes scanned: {_format_bytes(total_bytes)}")
+    files_per_sec = scan_result.get("files_per_second", 0)
+    bytes_per_sec = scan_result.get("bytes_per_second", 0)
+    if files_per_sec > 0:
+        print(f"Throughput: {files_per_sec} files/s, {_format_bytes(bytes_per_sec)}/s")
 
     # Severity breakdown: count findings by severity level.
     # Uses dict.get() with a default of 0 (PCC3e Ch 6: Dictionaries).

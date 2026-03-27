@@ -21,4 +21,4 @@ Usage as library:
 # Scanner version — included in JSON output metadata so consumers can track
 # which version produced a given evidence artifact. Bump this when detection
 # capabilities change (new patterns, new output fields, etc.).
-__version__ = "0.8.0"
+__version__ = "0.9.0"
