@@ -190,6 +190,12 @@ FedRAMP 20x (Pilot) emphasizes machine-readable compliance artifacts and continu
 - **CI/CD integration**: Non-zero exit codes and `--exit-zero` mode support both enforcement and monitoring pipeline configurations
 - **Continuous evidence generation**: Each scan produces a timestamped evidence artifact, supporting the FedRAMP 20x shift from annual assessments to continuous monitoring with Key Security Indicators (KSIs)
 
+## Integration with OSCAL Evidence Pipeline
+
+This scanner is used as the **first adapter** in [`oscal-evidence-pipeline`](https://github.com/0xBahalaNa/oscal-evidence-pipeline) — the OSCAL Assessment Results (SAR) transformation layer for FedRAMP 20x and CJIS v6.0 evidence. The `--output json` findings (file path, line number, finding type, NIST 800-53 control IDs) are the upstream input that the pipeline transforms into OSCAL `observation` and `finding` entries, completing the FedRAMP 20x detect → transform → retain → review evidence loop end-to-end.
+
+This integration also makes `secret-scanner` the live demonstration of the adapter pattern used for every downstream tool (`s3-audit`, `sg-audit`, `cloudtrail-audit`, `evidence-logger`) as they're brought into the pipeline.
+
 ## CJIS v6.0 Relevance
 
 CJIS Security Policy v6.0 (effective April 1, 2026) aligns with NIST 800-53 Rev 5 and introduces stricter requirements for Criminal Justice Information (CJI) protection. This tool is specifically relevant to public safety technology environments because:
