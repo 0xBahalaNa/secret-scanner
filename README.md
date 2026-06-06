@@ -1,3 +1,9 @@
+![License](https://img.shields.io/badge/License-MIT-green?style=flat)
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=flat)
+![NIST 800-53](https://img.shields.io/badge/NIST-800--53%20Rev%205-004990?style=flat)
+![FedRAMP](https://img.shields.io/badge/FedRAMP-High%20Baseline-0071bc?style=flat)
+![CJIS](https://img.shields.io/badge/CJIS-Security%20Policy%20v6.0-cc0000?style=flat)
+
 # Secret Scanner
 
 A Python tool that scans directories for sensitive content using compiled regex patterns. Detects AWS credentials, API keys, passwords, private keys, JWTs, connection strings, and CJIS Criminal Justice Information (CJI) leakage. Designed for use in CI/CD pipelines and GRC engineering workflows targeting public safety technology environments.
