@@ -204,7 +204,7 @@ This integration also makes `secret-scanner` the live demonstration of the adapt
 
 ## CJIS v6.0 Relevance
 
-CJIS Security Policy v6.0 (effective April 1, 2026) aligns with NIST 800-53 Rev 5 and introduces stricter requirements for Criminal Justice Information (CJI) protection. This tool is specifically relevant to public safety technology environments because:
+CJIS Security Policy v6.0 (published Dec 27, 2024; default audit baseline from April 1, 2026; Priority 2-4 fully enforceable Oct 1, 2027) aligns with NIST 800-53 Rev 5 and introduces stricter requirements for Criminal Justice Information (CJI) protection. This tool is specifically relevant to public safety technology environments because:
 
 - **CJI-specific detection**: Detects ORI numbers, NCIC query codes, FBI numbers, and State IDs — data types unique to law enforcement systems that generic secret scanners miss entirely
 - **Plaintext CJI is a policy violation**: Under CJIS v6.0 SC-28, CJI must be encrypted at rest using FIPS 140-2/3 validated cryptography. CJI appearing in a config file or log means encryption requirements are not being met
