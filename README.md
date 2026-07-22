@@ -12,6 +12,27 @@ Maps to NIST 800-53 Rev 5 controls: **IA-5(7)**, **SC-12**, **SC-28**.
 Maps to FedRAMP High baseline controls: **IA-5(7)**, **SC-12**, **SC-28**.
 Maps to CJIS v6.0 controls: **SC-12**, **SC-13**, **SC-28**.
 
+## Architecture Overview
+
+```mermaid
+flowchart TD
+    CLI["python -m secret_scanner<br/>CLI entry"] --> WALK["Walk target directory"]
+    WALK --> PAT["Compiled regex patterns<br/>secrets + CJI"]
+    PAT --> OPT["Optional --patterns<br/>org-specific rules"]
+    PAT --> FIND["Findings<br/>file:line"]
+    OPT --> FIND
+    FIND --> CON["Console summary<br/>alerts · files · skipped"]
+    FIND --> JSON["Optional JSON export<br/>scan_results.json"]
+    FIND --> EXIT["CI exit code<br/>non-zero on secrets"]
+    CON --> HUM["Operators / reviewers"]
+    JSON --> PIPE["Evidence pipelines<br/>GRC / CI artifacts"]
+    EXIT --> CI["CI/CD gate"]
+```
+
+Editable Mermaid source (kept in sync with the fence above): [`docs/architecture.mmd`](docs/architecture.mmd).
+
+`python -m secret_scanner` walks a target directory, runs compiled secret and CJI regex patterns (optional `--patterns` for org rules), and reports `file:line` findings. Operators get a console summary; optional JSON export feeds evidence pipelines; a non-zero exit code gates CI unless `--exit-zero` is set.
+
 ## Features
 
 - Recursively scans all files in a target directory and its subdirectories
