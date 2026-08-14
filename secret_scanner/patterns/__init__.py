@@ -19,8 +19,8 @@ from . import aws, cji, generic
 # finding carries its control_ids — making the output directly usable in
 # compliance workflows (CA-2 assessment evidence, CA-7 continuous monitoring).
 #
-# CJI patterns additionally map to CJIS v6.0 controls. We use the NIST
-# control IDs since CJIS v6.0 aligns with 800-53 Rev 5 as of Dec 2024.
+# CJI patterns additionally map to CJIS v6.1 controls. We use the NIST
+# control IDs since CJIS v6.x aligns with 800-53 Rev 5 (since v6.0, Dec 2024).
 CONTROL_MAP = {
     "AWS Access Key ID": ["IA-5(7)", "SC-12", "SC-28"],
     "AWS Secret Access Key": ["IA-5(7)", "SC-12", "SC-28"],

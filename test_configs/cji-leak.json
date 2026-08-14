@@ -1,6 +1,6 @@
 {
     "_comment": "TEST DATA ONLY — all CJI identifiers in this file are fake.",
-    "_purpose": "Exercises CJI-pattern detection for CJIS v6.0 compliance scanning.",
+    "_purpose": "Exercises CJI-pattern detection for CJIS v6.1 compliance scanning.",
     "_controls": "SC-28 (CJI at rest), SC-13 (Cryptographic Protection)",
 
     "agency_config": {

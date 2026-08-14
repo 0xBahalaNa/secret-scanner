@@ -2,7 +2,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=flat)
 ![NIST 800-53](https://img.shields.io/badge/NIST-800--53%20Rev%205-004990?style=flat)
 ![FedRAMP](https://img.shields.io/badge/FedRAMP-High%20Baseline-0071bc?style=flat)
-![CJIS](https://img.shields.io/badge/CJIS-Security%20Policy%20v6.0-cc0000?style=flat)
+![CJIS](https://img.shields.io/badge/CJIS-Security%20Policy%20v6.1-cc0000?style=flat)
 
 # Secret Scanner
 
@@ -10,7 +10,7 @@ A Python tool that scans directories for sensitive content using compiled regex 
 
 Maps to NIST 800-53 Rev 5 controls: **IA-5(7)**, **SC-12**, **SC-28**.
 Maps to FedRAMP High baseline controls: **IA-5(7)**, **SC-12**, **SC-28**.
-Maps to CJIS v6.0 controls: **SC-12**, **SC-13**, **SC-28**.
+Maps to CJIS v6.1 controls: **SC-12**, **SC-13**, **SC-28**.
 
 ## Architecture Overview
 
@@ -69,7 +69,7 @@ Editable Mermaid source (kept in sync with the fence above): [`docs/architecture
 | CJI: FBI Number | FBI Universal Control Numbers | `fbi_number = "123456AA7"` |
 | CJI: State ID (SID) | State criminal history record IDs | `sid = "CA12345678"` |
 
-CJI patterns address CJIS Security Policy v6.0 requirements: CJI must never appear in plaintext outside of authorized, encrypted systems. Detecting CJI leakage in config files and source code identifies violations of SC-28 (Protection of Information at Rest) and SC-13 (Cryptographic Protection).
+CJI patterns address CJIS Security Policy v6.1 requirements: CJI must never appear in plaintext outside of authorized, encrypted systems. Detecting CJI leakage in config files and source code identifies violations of SC-28 (Protection of Information at Rest) and SC-13 (Cryptographic Protection).
 
 ## Usage
 
@@ -192,9 +192,9 @@ This scans only the specified files instead of recursing a directory.
 | FedRAMP High | IA-5(7) | No Embedded Unencrypted Static Authenticators | Same as NIST. FedRAMP High inherits this control with no additional enhancements |
 | FedRAMP High | SC-12 | Cryptographic Key Establishment and Management | Same as NIST. FedRAMP High requires FIPS 140-2 validated key management |
 | FedRAMP High | SC-28 | Protection of Information at Rest | Same as NIST. FedRAMP High requires encryption for all data at rest |
-| CJIS v6.0 | SC-12 | Cryptographic Key Establishment and Management | Detects CJI identifiers (ORI, FBI numbers, SIDs) that must be protected with agency-managed encryption keys |
-| CJIS v6.0 | SC-13 | Cryptographic Protection | Identifies CJI in plaintext. CJIS requires FIPS 140-2/3 validated encryption for all CJI at rest |
-| CJIS v6.0 | SC-28 | Protection of Information at Rest | Detects NCIC query codes, ORI numbers, and other CJI that must never appear in plaintext config files |
+| CJIS v6.1 | SC-12 | Cryptographic Key Establishment and Management | Detects CJI identifiers (ORI, FBI numbers, SIDs) that must be protected with agency-managed encryption keys |
+| CJIS v6.1 | SC-13 | Cryptographic Protection | Identifies CJI in plaintext. CJIS requires FIPS 140-2/3 validated encryption for all CJI at rest |
+| CJIS v6.1 | SC-28 | Protection of Information at Rest | Detects NCIC query codes, ORI numbers, and other CJI that must never appear in plaintext config files |
 
 ## How This Supports Audits
 
@@ -219,16 +219,16 @@ FedRAMP 20x (Pilot) emphasizes machine-readable compliance artifacts and continu
 
 ## Integration with OSCAL Evidence Pipeline
 
-This scanner is used as the **first adapter** in [`oscal-evidence-pipeline`](https://github.com/0xBahalaNa/oscal-evidence-pipeline), the OSCAL Assessment Results (SAR) transformation layer for FedRAMP 20x and CJIS v6.0 evidence. The `--output json` findings (file path, line number, finding type, NIST 800-53 control IDs) are the upstream input that the pipeline transforms into OSCAL `observation` and `finding` entries.
+This scanner is used as the **first adapter** in [`oscal-evidence-pipeline`](https://github.com/0xBahalaNa/oscal-evidence-pipeline), the OSCAL Assessment Results (SAR) transformation layer for FedRAMP 20x and CJIS v6.1 evidence. The `--output json` findings (file path, line number, finding type, NIST 800-53 control IDs) are the upstream input that the pipeline transforms into OSCAL `observation` and `finding` entries.
 
 This integration also makes `secret-scanner` the live demonstration of the adapter pattern used for every downstream tool (`s3-audit`, `sg-audit`, `cloudtrail-audit`, `evidence-logger`) as they're brought into the pipeline.
 
-## CJIS v6.0 Relevance
+## CJIS v6.1 Relevance
 
-CJIS Security Policy v6.0 (published Dec 27, 2024; default audit baseline from April 1, 2026; Priority 2-4 fully enforceable Oct 1, 2027) aligns with NIST 800-53 Rev 5 and introduces stricter requirements for Criminal Justice Information (CJI) protection. This tool is specifically relevant to public safety technology environments because:
+CJIS Security Policy v6.1 (released June 25, 2026) is the current policy, aligned with NIST 800-53 Rev 5. v6.x has been the default audit baseline since April 1, 2026 (v5.9.5 sunset March 31, 2026); modernized Priority 2-4 controls are fully enforceable Oct 1, 2027 (timing varies by state CSA). It carries stricter requirements for Criminal Justice Information (CJI) protection. This tool is specifically relevant to public safety technology environments because:
 
 - **CJI-specific detection**: Detects ORI numbers, NCIC query codes, FBI numbers, and State IDs. Those are data types unique to law enforcement systems that generic secret scanners miss entirely
-- **Plaintext CJI is a policy violation**: Under CJIS v6.0 SC-28, CJI must be encrypted at rest using FIPS 140-2/3 validated cryptography. CJI appearing in a config file or log means encryption requirements are not being met
+- **Plaintext CJI is a policy violation**: Under CJIS v6.1 SC-28, CJI must be encrypted at rest using FIPS 140-2/3 validated cryptography. CJI appearing in a config file or log means encryption requirements are not being met
 - **Agency-managed keys (SC-12)**: CJIS requires that encryption keys for CJI be managed by the criminal justice agency, not the cloud provider. Detecting exposed CJI helps identify where this requirement applies
 - **Background check implications**: FBI numbers and SIDs link to criminal history records (CHRI) generated through fingerprint-based background checks, among the most sensitive categories of CJI
 
