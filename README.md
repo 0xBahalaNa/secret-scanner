@@ -6,7 +6,7 @@
 
 # Secret Scanner
 
-A Python tool that scans directories for sensitive content using compiled regex patterns. Detects AWS credentials, API keys, passwords, private keys, JWTs, connection strings, and CJIS Criminal Justice Information (CJI) leakage. Designed for use in CI/CD pipelines and GRC engineering workflows targeting public safety technology environments.
+I built this to scan directories for sensitive content using compiled regex patterns: AWS credentials, API keys, passwords, private keys, JWTs, connection strings, and CJIS Criminal Justice Information (CJI) leakage. It's meant to run in CI/CD pipelines and GRC engineering workflows targeting public safety technology environments.
 
 Maps to NIST 800-53 Rev 5 controls: **IA-5(7)**, **SC-12**, **SC-28**.
 Maps to FedRAMP High baseline controls: **IA-5(7)**, **SC-12**, **SC-28**.
@@ -198,12 +198,7 @@ This scans only the specified files instead of recursing a directory.
 
 ## How This Supports Audits
 
-This tool produces evidence artifacts that directly support compliance assessments:
-
-- **Pre-audit scanning**: Run against infrastructure-as-code repos, config directories, and deployment artifacts before an assessment to identify findings proactively
-- **Continuous monitoring evidence**: Use `--output json` in CI/CD pipelines to generate timestamped, machine-readable scan results for each build. Those artifacts demonstrate ongoing compliance with IA-5(7) and SC-28
-- **Remediation tracking**: JSON output includes `findings_by_type` counts that can be compared across scans to show remediation progress over time
-- **Audit record content**: Each finding includes file path, line number, pattern type, and mapped control IDs, which satisfies AU-3 (Content of Audit Records) requirements for specificity
+Run it against infrastructure-as-code repos, config directories, and deployment artifacts before an assessment, and the findings are proactive evidence rather than a scramble the week of the audit. In CI/CD, `--output json` generates a timestamped, machine-readable scan result for every build, which is what demonstrates ongoing compliance with IA-5(7) and SC-28 rather than a point-in-time check. The JSON output also carries `findings_by_type` counts, so remediation progress is something you can compare across scans instead of taking on faith. Each finding includes file path, line number, pattern type, and mapped control IDs. That specificity is what satisfies AU-3 (Content of Audit Records).
 
 ### Sample Evidence Output
 
@@ -211,11 +206,7 @@ See [`examples/sample_output.json`](examples/sample_output.json) for the full JS
 
 ## FedRAMP 20x Alignment
 
-FedRAMP 20x (Pilot) emphasizes machine-readable compliance artifacts and continuous validation over point-in-time assessments. This tool aligns with FedRAMP 20x in the following ways:
-
-- **JSON output format**: The `--output json` flag produces structured findings with ISO 8601 timestamps and NIST 800-53 control mappings. That structure is the foundation for transforming scan results into OSCAL Assessment Results format
-- **CI/CD integration**: Non-zero exit codes and `--exit-zero` mode support both enforcement and monitoring pipeline configurations
-- **Continuous evidence generation**: Each scan produces a timestamped evidence artifact, supporting the FedRAMP 20x shift from annual assessments to continuous monitoring with Key Security Indicators (KSIs)
+FedRAMP 20x (Pilot) wants machine-readable compliance artifacts and continuous validation instead of point-in-time assessments, and that's the shape this tool already produces. `--output json` writes structured findings with ISO 8601 timestamps and NIST 800-53 control mappings, which is the foundation for transforming scan results into OSCAL Assessment Results format. The non-zero exit code (or `--exit-zero` for monitoring-only runs) works as either an enforcement gate or a passive collector, depending on how the pipeline is wired. Every scan is a timestamped evidence artifact on its own, which is the actual mechanism behind FedRAMP 20x's shift from annual assessments to continuous monitoring with Key Security Indicators (KSIs).
 
 ## Integration with OSCAL Evidence Pipeline
 
@@ -225,12 +216,7 @@ This integration also makes `secret-scanner` the live demonstration of the adapt
 
 ## CJIS v6.1 Relevance
 
-CJIS Security Policy v6.1 (released June 25, 2026) is the current policy, aligned with NIST 800-53 Rev 5. v6.x has been the default audit baseline since April 1, 2026 (v5.9.5 sunset March 31, 2026); modernized Priority 2-4 controls are fully enforceable Oct 1, 2027 (timing varies by state CSA). It carries stricter requirements for Criminal Justice Information (CJI) protection. This tool is specifically relevant to public safety technology environments because:
-
-- **CJI-specific detection**: Detects ORI numbers, NCIC query codes, FBI numbers, and State IDs. Those are data types unique to law enforcement systems that generic secret scanners miss entirely
-- **Plaintext CJI is a policy violation**: Under CJIS v6.1 SC-28, CJI must be encrypted at rest using FIPS 140-2/3 validated cryptography. CJI appearing in a config file or log means encryption requirements are not being met
-- **Agency-managed keys (SC-12)**: CJIS requires that encryption keys for CJI be managed by the criminal justice agency, not the cloud provider. Detecting exposed CJI helps identify where this requirement applies
-- **Background check implications**: FBI numbers and SIDs link to criminal history records (CHRI) generated through fingerprint-based background checks, among the most sensitive categories of CJI
+CJIS Security Policy v6.1 (released June 25, 2026) is the current policy, aligned with NIST 800-53 Rev 5. v6.x has been the default audit baseline since April 1, 2026 (v5.9.5 sunset March 31, 2026); modernized Priority 2-4 controls are fully enforceable Oct 1, 2027 (timing varies by state CSA). It carries stricter requirements for Criminal Justice Information (CJI) protection, and that's where this tool earns its keep in a public safety environment. It detects ORI numbers, NCIC query codes, FBI numbers, and State IDs, data types unique to law enforcement systems that a generic secret scanner misses entirely. Under CJIS v6.1 SC-28, CJI has to be encrypted at rest using FIPS 140-2/3 validated cryptography, so CJI showing up in a config file or log is itself the violation, not just a risk. CJIS also requires that encryption keys for CJI be managed by the criminal justice agency rather than the cloud provider (SC-12), and finding exposed CJI is one way to surface where that requirement actually applies. FBI numbers and SIDs matter more than most fields here: they link to criminal history records (CHRI) generated through fingerprint-based background checks, one of the most sensitive categories of CJI there is.
 
 ## Test Data
 
