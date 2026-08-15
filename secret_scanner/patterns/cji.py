@@ -1,6 +1,6 @@
 """CJIS Criminal Justice Information (CJI) detection patterns.
 
-CJIS Security Policy v6.0 requires that CJI — including ORI numbers, NCIC
+CJIS Security Policy v6.1 requires that CJI — including ORI numbers, NCIC
 codes, FBI numbers, and State IDs — never appear in plaintext outside of
 authorized, encrypted systems. Detecting CJI leakage in config files and
 source code addresses:

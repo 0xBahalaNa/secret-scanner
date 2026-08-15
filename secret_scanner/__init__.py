@@ -4,7 +4,7 @@ Scans directories for sensitive information (AWS credentials, API keys,
 passwords, private keys, JWT tokens, connection strings, and CJIS Criminal
 Justice Information) in configuration files and source code.
 
-Maps findings to NIST 800-53 Rev 5, FedRAMP High, and CJIS v6.0 controls.
+Maps findings to NIST 800-53 Rev 5, FedRAMP High, and CJIS v6.1 controls.
 Produces structured JSON output for OSCAL evidence pipelines.
 
 Usage as CLI:
