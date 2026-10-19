@@ -228,6 +228,8 @@ The `test_configs/` directory contains **intentionally fake credentials and CJI 
 
 - Python 3.x (no third-party dependencies)
 
+CI runs `make test`.
+
 ## License
 
 MIT License
